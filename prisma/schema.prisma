@@ -1,0 +1,32 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Friend {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  matches   Match[]
+}
+
+model Match {
+  id            String   @id @default(cuid())
+  friendId      String
+  friend        Friend   @relation(fields: [friendId], references: [id], onDelete: Cascade)
+  playerClub    String
+  opponentClub  String
+  playerScore   Int
+  opponentScore Int
+  possession    Int?
+  shots         Int?
+  imageUrl      String?
+  playedAt      DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  @@index([friendId, playedAt])
+}

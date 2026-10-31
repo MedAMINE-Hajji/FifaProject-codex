@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# matchday
 
-## Getting Started
+Application Next.js pour suivre les matchs FIFA / EA FC joues sur PlayStation avec ses amis.
 
-First, run the development server:
+## Fonctionnement
+
+1. Ouvrir l'application depuis un telephone ou un ordinateur.
+2. Importer une capture du resultat FIFA.
+3. La route serveur `/api/matches/analyze` envoie l'image au fournisseur IA configure.
+4. Les donnees extraites sont affichees pour confirmation.
+5. Le bouton d'enregistrement cree le match et l'ami dans PostgreSQL via Prisma.
+6. Le dashboard recharge les resultats depuis `/api/matches`.
+
+## Installation
 
 ```bash
+npm install
+npm run db:generate
+npm run db:push
+npm run db:seed
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Puis ouvrir `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Variables d'environnement
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Copier `.env.example` vers `.env` et renseigner :
 
-## Learn More
+- `DATABASE_URL` : URL PostgreSQL Neon.
+- `AI_API_KEY` : cle du fournisseur compatible OpenAI Chat Completions.
+- `AI_API_URL` : endpoint vision du fournisseur.
+- `AI_MODEL` : modele vision, par exemple `gpt-4o-mini`.
 
-To learn more about Next.js, take a look at the following resources:
+Le serveur accepte encore temporairement `AI_Api_Key`, mais il est recommande de renommer cette variable en `AI_API_KEY`. Ne jamais exposer ces variables dans le navigateur ni les committer.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Commandes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `npm run dev` : serveur local.
+- `npm run lint` : verification ESLint.
+- `npm run build` : build production.
+- `npm run db:generate` : generer Prisma Client.
+- `npm run db:push` : synchroniser le schema avec PostgreSQL.
+- `npm run db:seed` : inserer les donnees de depart.
 
-## Deploy on Vercel
+## Routes backend
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `GET /api/matches` : matchs et amis pour le dashboard.
+- `POST /api/matches` : enregistrer un match confirme.
+- `POST /api/matches/analyze` : analyser une image avec le fournisseur IA.
