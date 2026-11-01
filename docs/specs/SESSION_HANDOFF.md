@@ -33,10 +33,10 @@ T1..T11 map to issue numbers 2..12 respectively. All are ready-for-agent sub-iss
 
 ## Next steps
 
-1. Receive T1 result; review changes, tests and frozen contracts; merge/cherry-pick into integration and run affected validation against the disposable database.
+1. T1 is accepted at integration commit 983f0d9: 40 tests pass on schema t01_review; production build passes; two Chromium workspace tests pass (desktop/phone). Issue 2 closed. Coordinator corrected schema fixture isolation and added browser gate.
 2. Finalize exact disjoint allowlists and module wiring. T1 is extracting match read/write handlers and defining entry/dialog contracts. T2 owns analyzer/upload adapter/import dialog; T3 owns manual date adapter/dialog; T4 owns career panel/read extension; T5 owns new shell/theme presentation; T11 owns music player/audio metadata.
 3. Coordinator alone edits top-level page composition, shared registries/adapters, package lock and global setup once parallel work begins. Add each accepted feature through serial wiring.
-4. Create separate worktrees from accepted integration commits; dispatch up to five fresh agents with one ticket each. No dependent workers have started yet.
+4. Five workers started from 983f0d9, all separate worktrees under C:/Users/LENOVO/.codex/worktrees/edition-tNN/fifaProject: T5 Archimedes 01a19822-f84f-7583-8929-52a8991045c5; T2 Aristotle 01a19822-f94e-7de3-8151-5b1fb18f2ad5; T3 Lagrange 01a19822-fa74-7681-afd4-47c20058f085; T4 Aquinas 01a19822-fb81-70d2-a2d1-d6cc1a11332a; T11 Newton 01a19822-fd01-7983-acbe-4372ece705bb. Each has exclusive paths; coordinator owns page composition and shared contracts. Review/integrate independently. Theme workers T6-T10 must await accepted T5.
 5. Complete individual theme tickets only after T5 is accepted. Every worker runs relevant tests; coordinator performs full final validation and updates this handoff with actual results and remaining work.
 
 ## Operational notes

@@ -13,14 +13,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "matchday | Tes matchs FIFA entre amis",
-  description: "Le tableau de bord de tes matchs FIFA sur PlayStation.",
+  title: "matchday | Your football history",
+  description: "Your FIFA and EA Sports FC matches, rivalries and career across every edition.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="fr"
+      lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>

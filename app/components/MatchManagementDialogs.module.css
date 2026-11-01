@@ -1,0 +1,15 @@
+.modal { width: min(580px, calc(100vw - 32px)); max-height: 88vh; margin: auto; padding: 24px; color: #f3f6fa; background: #111923; border: 1px solid #526071; border-radius: 18px; box-shadow: 0 24px 100px #0009; }
+.modal::backdrop { background: #02060bbd; backdrop-filter: blur(8px); }
+.modal header,.modal footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.modal header h2 { font-size: 1.4rem; margin: 0; }
+.modal form { display: grid; gap: 16px; margin-top: 20px; }
+.modal p { font-size: .9rem; line-height: 1.6; color: #bac6d5; }
+.modal label { display: grid; gap: 7px; font-size: .85rem; font-weight: 600; }
+.modal input,.modal select { min-width: 0; width: 100%; min-height: 44px; padding: 10px; border-radius: 8px; border: 1px solid #566575; background: #1a2634; color: #fff; }
+.modal button { min-height: 44px; padding: 10px 16px; border-radius: 8px; background: #273649; color: white; cursor: pointer; }
+.modal button[type=submit],.modal footer button:last-child { background: #c0ee4b; color: #112000; font-weight: 700; }
+.modal button:disabled { opacity: .5; cursor: wait; }
+.modal :focus-visible { outline: 3px solid #d4fa82; outline-offset: 3px; }
+.modal [role=alert] { color: #ffbcb9; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media(max-width: 440px) { .grid { grid-template-columns: 1fr; } .modal { padding: 18px; } }
