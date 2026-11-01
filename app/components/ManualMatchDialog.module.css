@@ -1,0 +1,33 @@
+.dialog {
+  width: min(38rem, calc(100% - 2rem));
+  max-height: calc(100dvh - 2rem);
+  margin: auto;
+  padding: clamp(1rem, 3vw, 1.75rem);
+  overflow-y: auto;
+  color: #f4f6fa;
+  background: #131923;
+  border: 1px solid #66738a;
+  border-radius: 1rem;
+  box-shadow: 0 1.5rem 6rem #0009;
+  color-scheme: dark;
+}
+.dialog::backdrop { background: #020612ce; }
+.header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.header h2 { font-size: 1.4rem; font-weight: 700; line-height: 1.25; }
+.description { margin-block: 1rem; color: #c6cfdd; }
+.fields { border: 0; padding: 0; margin: 0; display: grid; gap: 1rem; min-width: 0; }
+.label { display: grid; gap: .4rem; font-size: .9rem; font-weight: 600; min-width: 0; }
+.dialog input, .dialog select {
+  width: 100%; min-width: 0; min-height: 2.75rem; padding: .65rem .75rem;
+  background: #090f18; color: #f4f6fa; border: 1px solid #78869c; border-radius: .4rem; font: inherit;
+}
+.dialog button { min-height: 2.75rem; padding: .6rem 1rem; border: 1px solid #78869c; border-radius: .4rem; font: inherit; cursor: pointer; }
+.dialog :is(button, input, select):focus-visible { outline: 3px solid #a3e635; outline-offset: 3px; }
+.dialog button:disabled { cursor: wait; opacity: .65; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.help { font-size: .85rem; color: #c6cfdd; margin-top: -.4rem; }
+.error { color: #ffd0d0; background: #54232b; padding: .8rem; border-radius: .4rem; margin-block: 1rem; }
+.actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: .75rem; margin-top: 1.5rem; }
+.dialog .save { background: #a3e635; color: #101700; border-color: #a3e635; font-weight: 700; }
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 420px) { .grid { grid-template-columns: minmax(0, 1fr); } }
