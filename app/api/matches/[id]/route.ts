@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { VALID_RECORD_EDITIONS } from "@/lib/fifa-editions";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -9,7 +10,12 @@ function matchData(body: Record<string, unknown>) {
   if (!Number.isInteger(playerScore) || playerScore < 0 || !Number.isInteger(opponentScore) || opponentScore < 0) {
     return null;
   }
-  return { playerScore, opponentScore, playerClub: String(body.playerClub ?? "").trim(), opponentClub: String(body.opponentClub ?? "").trim() };
+  return {
+    playerScore,
+    opponentScore,
+    playerClub: String(body.playerClub ?? "").trim(),
+    opponentClub: String(body.opponentClub ?? "").trim(),
+  };
 }
 
 export async function PATCH(request: Request, { params }: Context) {
@@ -20,11 +26,18 @@ export async function PATCH(request: Request, { params }: Context) {
   if (!data || !data.playerClub || !data.opponentClub || !friendId) {
     return NextResponse.json({ error: "Les données du match sont invalides." }, { status: 400 });
   }
+
+  const editionUpdate: { edition?: string } = {};
+  if (body.edition && VALID_RECORD_EDITIONS.includes(body.edition as any)) {
+    editionUpdate.edition = body.edition;
+  }
+
   try {
     const match = await prisma.match.update({
       where: { id },
       data: {
         ...data,
+        ...editionUpdate,
         friendId,
         possession: body.possession == null ? null : Number(body.possession),
         shots: body.shots == null ? null : Number(body.shots),
