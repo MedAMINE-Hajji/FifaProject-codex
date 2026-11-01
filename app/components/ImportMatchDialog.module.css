@@ -1,0 +1,19 @@
+.dialog { width: min(42rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; margin: auto; padding: clamp(1rem, 4vw, 2rem); border: 1px solid #727e95; border-radius: 1rem; background: #111827; color: #f8fafc; box-shadow: 0 1rem 4rem #0008; }
+.dialog::backdrop { background: #020617bb; }
+.dialog h2 { font-size: 1.5rem; font-weight: 700; }
+.heading, .actions { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.dialog p { margin-block: 1rem; line-height: 1.5; }
+.dialog label { display: grid; gap: .5rem; min-width: 0; }
+.dialog input, .dialog select, .dialog button { min-height: 44px; border: 1px solid #8490a6; border-radius: .5rem; padding: .65rem; font: inherit; color: #f8fafc; background: #202d43; }
+.dialog input, .dialog select { width: 100%; min-width: 0; }
+.dialog input[type="file"] { font-size: .875rem; }
+.dialog button { cursor: pointer; }
+.dialog :disabled { opacity: .6; cursor: default; }
+.dialog :focus-visible { outline: 3px solid #67e8f9; outline-offset: 3px; }
+.dialog fieldset { border: 0; padding: 0; margin-block: 1rem; min-width: 0; }
+.dialog legend { margin-bottom: 1rem; font-weight: 600; }
+.review, .uploads { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.edition { font-weight: 700; color: #a5f3fc; }
+.error { color: #fecaca; }
+.actions { flex-wrap: wrap; margin-top: 1rem; }
+@media (max-width: 520px) { .review, .uploads { grid-template-columns: 1fr; } .actions button { flex: 1 1 100%; } }

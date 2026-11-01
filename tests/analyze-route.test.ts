@@ -1,13 +1,15 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { POST } from "../app/api/matches/analyze/route";
+import { resolveUploadContext } from "../lib/matches/upload-context";
 
 function fakeImage(): File {
   return new File(["fake image bytes"], "result.png", { type: "image/png" });
 }
 
-function makeRequest(image: File): Request {
+function makeRequest(image: File, edition?: string): Request {
   const formData = new FormData();
   formData.append("image", image);
+  if (edition !== undefined) formData.append("edition", edition);
   return new Request("http://localhost/api/matches/analyze", {
     method: "POST",
     body: formData,
@@ -60,7 +62,7 @@ describe("POST /api/matches/analyze", () => {
     await POST(makeRequest(fakeImage()));
     const prompt = lastAiRequest().promptText.toLowerCase();
 
-    expect(prompt).toContain("autre jeu");
+    expect(prompt).toContain("another game");
   });
 
   it("rejects a screenshot identified as another game with 422", async () => {
@@ -157,5 +159,55 @@ describe("POST /api/matches/analyze", () => {
       possession: 55,
       shots: 12,
     });
+  });
+});
+
+afterEach(() => { vi.useRealTimers(); aiResponses.length = 0; vi.mocked(fetch).mockClear(); });
+
+describe("edition-aware screenshot analysis", () => {
+  const extracted = { isFifa: true, friendName: "Alex", playerClub: "PSG", opponentClub: "Real Madrid", playerScore: 2, opponentScore: 1 };
+
+  it("captures edition and server time before slow analysis crosses midnight", async () => {
+    vi.useFakeTimers();
+    const started = new Date("2026-10-31T23:59:59.000Z");
+    vi.setSystemTime(started);
+    vi.mocked(fetch).mockImplementationOnce(async () => {
+      vi.setSystemTime(new Date("2026-11-01T00:05:00.000Z"));
+      return Response.json({ choices: [{ message: { content: JSON.stringify({ ...extracted, edition: "FC_27", uploadDate: "1999-01-01" }) } }] });
+    });
+    const response = await POST(makeRequest(fakeImage(), "FIFA_22"));
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(await resolveUploadContext({ edition: "FIFA_22", uploadContext: body.uploadContext }, new Date())).toEqual({ ok: true, playedAt: started });
+    expect(await resolveUploadContext({ edition: "FC_27", uploadContext: body.uploadContext }, new Date())).toMatchObject({ ok: false });
+  });
+
+  it.each(["ALL", "", "FIFA_99", "2022"])("rejects edition %s before contacting AI", async edition => {
+    const response = await POST(makeRequest(fakeImage(), edition));
+    expect(response.status).toBe(400);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("handles malformed multipart requests without exposing internals", async () => {
+    const response = await POST(new Request("http://localhost/api/matches/analyze", { method: "POST", body: "bad" }));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "Send a screenshot using an image upload." });
+  });
+
+  it.each([new File([], "empty.png", { type: "image/png" }), new File(["text"], "note.txt", { type: "text/plain" })])("rejects invalid image input", async image => {
+    expect((await POST(makeRequest(image, "FC_27"))).status).toBe(400);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("handles provider network failures with a safe English error", async () => {
+    vi.mocked(fetch).mockRejectedValueOnce(new Error("private provider details"));
+    const response = await POST(makeRequest(fakeImage(), "FC_27"));
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({ error: "Could not read the match result. Please try again with a clear screenshot." });
+  });
+
+  it("handles invalid provider JSON without exposing internal details", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response("not json"));
+    expect((await POST(makeRequest(fakeImage(), "FC_27"))).status).toBe(502);
   });
 });
