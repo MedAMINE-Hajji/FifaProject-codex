@@ -12,6 +12,13 @@
 
 # testing
 /coverage
+/test-results/
+/playwright-report/
+/blob-report/
+/.scratch/
+
+# Owner-supplied soundtrack recordings stay local.
+/public/audio/*.mp3
 
 # next.js
 /.next/

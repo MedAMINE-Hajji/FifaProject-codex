@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Sparkles } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { FIFA_EDITIONS, EDITION_LIST, FifaEdition } from "@/lib/fifa-editions";
 
 type Props = {
