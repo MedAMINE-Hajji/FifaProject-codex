@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import type { Friend, Match } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { isEditionScope, LATEST_EDITION } from "@/lib/fifa-editions";
-import type { DashboardStats } from "./contracts";
+import { FIFA_EDITIONS, isEditionScope, LATEST_EDITION, VALID_RECORD_EDITIONS } from "@/lib/fifa-editions";
+import type { DashboardStats, EditionComparison } from "./contracts";
 
 // Shared aggregation seam for T4's career comparisons. Input is already scope-filtered.
 export function summarizeMatches(matches: Match[], friends: Friend[], now = new Date()): DashboardStats {
@@ -52,7 +52,19 @@ export async function readMatches(request: Request) {
     }),
     prisma.friend.findMany({ orderBy: { name: "asc" } }),
   ]);
-  return NextResponse.json({ edition, matches, friends, stats: summarizeMatches(matches, friends) }, {
+  const comparisons: EditionComparison[] | undefined = edition === "ALL"
+    ? VALID_RECORD_EDITIONS.map((id) => {
+      const rows = matches.filter((match) => match.edition === id);
+      const wins = rows.filter((match) => match.playerScore > match.opponentScore).length;
+      const draws = rows.filter((match) => match.playerScore === match.opponentScore).length;
+      return {
+        edition: id, name: FIFA_EDITIONS[id].name, matches: rows.length,
+        wins, draws, losses: rows.length - wins - draws,
+        goals: rows.reduce((total, match) => total + match.playerScore, 0),
+        winRate: rows.length ? Math.round(wins / rows.length * 100) : 0,
+      };
+    }) : undefined;
+  return NextResponse.json({ edition, matches, friends, stats: summarizeMatches(matches, friends), comparisons }, {
     headers: { "Cache-Control": "no-store" },
   });
 }

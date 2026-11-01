@@ -1,0 +1,20 @@
+.panel { color: #f8fafc; background: #101827; border: 1px solid #64748b; border-radius: 20px; padding: clamp(16px, 3vw, 32px); min-width: 0; }
+.panel h2 { font-size: clamp(1.6rem, 4vw, 2.5rem); margin: 0 0 12px; }
+.panel h3 { font-size: 1.25rem; margin: 28px 0 12px; }
+.panel p { color: #cbd5e1; line-height: 1.6; }
+.eyebrow { text-transform: uppercase; letter-spacing: .12em; }
+.totals, .record { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 20px 0; }
+.totals > div { background: #1e293b; border-radius: 10px; padding: 12px; }
+.panel dt { color: #cbd5e1; font-size: .875rem; }
+.panel dd { margin: 4px 0 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.totals dd { font-size: 1.75rem; }
+.editions, .rivals { list-style: none; padding: 0; margin: 0; }
+.editions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.editions li { border: 1px solid #64748b; border-radius: 12px; padding: 16px; min-width: 0; }
+.editions h4 { margin: 0; }
+.editions button { min-height: 44px; width: 100%; text-align: left; color: #a5f3fc; background: transparent; border: 0; border-radius: 4px; font: inherit; font-size: 1.1rem; cursor: pointer; overflow-wrap: anywhere; }
+.editions button:hover { text-decoration: underline; }
+.editions button:focus-visible { outline: 3px solid #facc15; outline-offset: 4px; }
+.rivals li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; border-bottom: 1px solid #64748b; padding: 16px 0; overflow-wrap: anywhere; }
+.rivals span { color: #cbd5e1; }
+@media (max-width: 640px) { .editions { grid-template-columns: minmax(0, 1fr); } .totals { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
