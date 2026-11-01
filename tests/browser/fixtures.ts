@@ -11,6 +11,8 @@ export const emptyDashboard = {
 };
 
 export async function mockEmptyDashboard(page: Page) {
+  // Presentation checks stay silent. Media specs override this with short tones.
+  await page.route(/\/audio\/fifa2[2-7]\.mp3(?:\?.*)?$/, route => route.fulfill({ status: 404, body: '' }));
   await page.route(/\/api\/matches(?:\?.*)?$/, async route => {
     if (route.request().method() === 'GET') {
       const edition = new URL(route.request().url()).searchParams.get('edition') ?? 'ALL';

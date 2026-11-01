@@ -13,6 +13,7 @@ test('real manual and photo workflows share a friend, retain dates and delete ac
     return response.json();
   };
   try {
+    await page.route(/\/audio\/.*\.mp3$/, route => route.fulfill({ status: 404, body: '' }));
     await page.goto('/');
     await page.getByLabel('Current edition', { exact: true }).selectOption('FIFA_22');
     await page.getByRole('button', { name: /manual/i }).first().click();
