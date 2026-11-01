@@ -4,7 +4,8 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createDashboardStore } from "@/lib/matches/dashboard-client";
 import { LATEST_EDITION, isConcreteEdition, type ConcreteEdition, type FifaEdition } from "@/lib/fifa-editions";
 import type { FriendIdentity, MatchRecord } from "@/lib/matches/contracts";
-import DashboardShell from "./components/dashboard-shell/DashboardShell";
+import DashboardShell, { DashboardThemeProvider } from "./components/dashboard-shell/DashboardShell";
+import { getEditionTheme } from '@/lib/edition-themes';
 import ImportMatchDialog from "./components/ImportMatchDialog";
 import ManualMatchDialog from "./components/ManualMatchDialog";
 import CareerPanel from "./components/CareerPanel";
@@ -65,7 +66,7 @@ export default function Home() {
   }
 
   const data = snapshot.data;
-  return <DashboardShell
+  return <DashboardThemeProvider theme={getEditionTheme(snapshot.edition, audioEdition)}><DashboardShell
     edition={snapshot.edition}
     dashboard={data}
     loading={snapshot.loading}
@@ -90,5 +91,5 @@ export default function Home() {
     <ImportMatchDialog open={uploadOpen} edition={snapshot.edition} friends={data?.friends ?? []} onClose={() => setUploadOpen(false)} onSaved={refresh} />
     <ManualMatchDialog open={manualOpen} edition={snapshot.edition} friends={data?.friends ?? []} onClose={() => setManualOpen(false)} onSaved={refresh} />
     {management && <MatchManagementDialogs state={management} friends={data?.friends ?? []} onClose={() => setManagement(null)} onSaved={refresh} />}
-  </DashboardShell>;
+  </DashboardShell></DashboardThemeProvider>;
 }

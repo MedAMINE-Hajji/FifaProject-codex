@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { ArrowDown, ArrowUpRight, Camera, ChevronDown, Flag, Plus, Trophy, Users } from 'lucide-react';
 import { EDITION_LIST, FIFA_EDITIONS } from '@/lib/fifa-editions';
 import type { DashboardShellProps } from '@/lib/presentation-contracts';
@@ -11,6 +11,9 @@ import './dashboard-shell.css';
 export { DashboardThemeProvider } from './ThemeProvider';
 
 const dateFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+const subscribeHydration = () => () => {};
+const clientReady = () => true;
+const serverReady = () => false;
 
 function result(match: MatchRecord) {
   return match.playerScore > match.opponentScore ? 'Win' : match.playerScore < match.opponentScore ? 'Loss' : 'Draw';
@@ -23,6 +26,7 @@ function matchDate(value: string) {
 
 /** Presentational shell only: parent owns selection, mutations, dialogs and music. */
 export default function DashboardShell(props: DashboardShellProps) {
+  const hydrated = useSyncExternalStore(subscribeHydration, clientReady, serverReady);
   const { edition, loading, error, onSelectEdition, onUpload, onManual, onAddFriend, onEditMatch, onDeleteMatch, onEditFriend, onDeleteFriend, career, children } = props;
   const theme = useDashboardTheme();
   const { Backdrop, Hero } = theme;
@@ -50,7 +54,7 @@ export default function DashboardShell(props: DashboardShellProps) {
           <a className="md-brand" href="#matchday-content" aria-label="matchday home"><span className="md-brand-mark" aria-hidden="true">m<span>.</span></span>matchday<span className="md-brand-caption">YOUR PERSONAL FOOTBALL ARCHIVE</span></a>
           <div className="md-edition-control">
             <label htmlFor="matchday-edition">Current edition</label>
-            <div className="md-select-wrap"><select id="matchday-edition" value={edition} onChange={event => {
+            <div className="md-select-wrap"><select id="matchday-edition" disabled={!hydrated} value={edition} onChange={event => {
               const selected = EDITION_LIST.find(item => item === event.target.value);
               if (selected) { setQuery(''); setOutcome('All results'); setExpanded(false); onSelectEdition(selected); }
             }}>{EDITION_LIST.filter(item => item !== 'ALL').map(item => <option key={item} value={item}>{FIFA_EDITIONS[item].name}</option>)}<option value="ALL">All editions · Career</option></select><ChevronDown size={16} aria-hidden="true" /></div>

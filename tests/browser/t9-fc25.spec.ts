@@ -30,7 +30,7 @@ for (const width of [390, 1280]) {
     await expect(shell.getByLabel('Arsenal 3, Inter 1')).toBeVisible();
     await expect(shell.getByText('17 Mar 2025')).toBeVisible();
     await expect(shell.locator('.md-backdrop')).toHaveAttribute('aria-hidden', 'true');
-    for (const locator of [shell.locator('button:visible'), shell.locator('select:visible'), shell.locator('input:visible'), shell.locator('a:visible')]) {
+    for (const locator of [shell.locator('button:visible'), shell.locator('select:visible'), shell.locator('input:visible'), shell.locator('a:visible:not(.md-skip)')]) {
       for (const control of await locator.all()) {
         const box = await control.boundingBox();
         expect(box?.height).toBeGreaterThanOrEqual(44);

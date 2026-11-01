@@ -26,7 +26,7 @@ test('FIFA 22 selection mounts the independent theme and preserves records, filt
   await expect(shell.getByLabel('Arsenal 3, Inter 1')).toBeVisible();
   await expect(shell.getByText('17 Mar 2022')).toBeVisible();
   await shell.getByRole('searchbox').fill('not-a-club');
-  await expect(shell.getByRole('status')).toHaveText('No matches match these filters.');
+  await expect(shell.locator('#match-history').getByRole('status')).toHaveText('No matches match these filters.');
   await shell.getByRole('searchbox').fill('');
   await shell.getByRole('button', { name: /^Upload screenshot/ }).click();
   await expect(page.getByRole('dialog', { name: 'Import match' })).toBeVisible();
