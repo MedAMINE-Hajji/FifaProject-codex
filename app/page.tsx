@@ -1,14 +1,11 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
   ArrowUpRight,
   BarChart3,
-  Bell,
   Camera,
   CirclePlus,
-  Clock3,
-  Disc3,
   FileImage,
   Filter,
   Flame,
@@ -16,8 +13,6 @@ import {
   Goal,
   LayoutDashboard,
   Pencil,
-  Search,
-  Settings2,
   Shield,
   Sparkles,
   Swords,
@@ -27,9 +22,11 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { FIFA_EDITIONS, FifaEdition, VALID_RECORD_EDITIONS } from "@/lib/fifa-editions";
+import { FIFA_EDITIONS, FifaEdition, LATEST_EDITION, VALID_RECORD_EDITIONS, isConcreteEdition } from "@/lib/fifa-editions";
 import EditionSelector from "./components/EditionSelector";
 import EaTraxPlayer from "./components/EaTraxPlayer";
+import { createDashboardStore, EMPTY_STATS } from "@/lib/matches/dashboard-client";
+import type { FriendStat } from "@/lib/matches/contracts";
 
 type Match = {
   id: string;
@@ -48,50 +45,22 @@ type Match = {
   edition: string;
 };
 
-type FriendStat = {
-  id: string;
-  name: string;
-  matches: number;
-  record: string;
-  winRate: number;
-};
-
-type DashboardStats = {
-  totalMatches: number;
-  winRate: number;
-  goals: number;
-  preferredOpponent: string | null;
-  weeklyMatches: number;
-  recentWins: number;
-  recentTotal: number;
-  formRate: number;
-  friendStats: FriendStat[];
-};
-
 export default function Home() {
-  const [selectedEdition, setSelectedEdition] = useState<FifaEdition>("FIFA_22");
+  const [dashboard] = useState(() => createDashboardStore());
+  const dashboardState = useSyncExternalStore(dashboard.subscribe, dashboard.getSnapshot, dashboard.getSnapshot);
+  const selectedEdition = dashboardState.edition;
+  const setSelectedEdition = dashboard.select;
   const [isEditionOpen, setIsEditionOpen] = useState(false);
-
-  const [matches, setMatches] = useState<Match[]>([]);
-  const [friends, setFriends] = useState<string[]>([]);
-  const [stats, setStats] = useState<DashboardStats>({
-    totalMatches: 0,
-    winRate: 0,
-    goals: 0,
-    preferredOpponent: null,
-    weeklyMatches: 0,
-    recentWins: 0,
-    recentTotal: 0,
-    formRate: 0,
-    friendStats: [],
-  });
+  const matches = useMemo(() => dashboardState.data?.matches.map(toMatch) ?? [], [dashboardState.data]);
+  const friends = ["Tous les amis", ...(dashboardState.data?.friends.map((friend) => friend.name) ?? [])];
+  const stats = dashboardState.data?.stats ?? EMPTY_STATS;
 
   const [selectedFriend, setSelectedFriend] = useState("Tous les amis");
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isFriendOpen, setIsFriendOpen] = useState(false);
   const [friendName, setFriendName] = useState("");
   const [selectedOpponent, setSelectedOpponent] = useState("");
-  const [importEdition, setImportEdition] = useState<FifaEdition>("FIFA_22");
+  const [importEdition, setImportEdition] = useState<FifaEdition>(LATEST_EDITION);
 
   const [fileName, setFileName] = useState("");
   const [analysisState, setAnalysisState] = useState<"idle" | "analyzing" | "done">("idle");
@@ -109,7 +78,7 @@ export default function Home() {
     opponentScore: 0,
     possession: "",
     shots: "",
-    edition: "FIFA_22",
+    edition: LATEST_EDITION as string,
   });
   const [isUpdating, setIsUpdating] = useState(false);
   const [editingFriend, setEditingFriend] = useState<FriendStat | null>(null);
@@ -122,28 +91,12 @@ export default function Home() {
       : matches.filter((match) => match.opponent === selectedFriend);
   }, [matches, selectedFriend]);
 
-  // Fetch matches whenever the selectedEdition changes
   useEffect(() => {
-    refreshDashboard(selectedEdition);
-    // Align import edition if user was on a concrete edition
-    if (selectedEdition !== "ALL") {
-      setImportEdition(selectedEdition);
-    }
-  }, [selectedEdition]);
+    void dashboard.refresh();
+    return () => dashboard.cancel();
+  }, [dashboard]);
 
-  async function refreshDashboard(edition: FifaEdition = selectedEdition) {
-    try {
-      const url = edition === "ALL" ? "/api/matches" : `/api/matches?edition=${edition}`;
-      const response = await fetch(url);
-      if (!response.ok) throw new Error("Impossible de charger les données de cette saison.");
-      const data = await response.json();
-      setFriends(["Tous les amis", ...data.friends.map((friend: { name: string }) => friend.name)]);
-      setMatches(data.matches.map(toMatch));
-      setStats(data.stats);
-    } catch (error: any) {
-      setErrorMessage(error.message);
-    }
-  }
+  const refreshDashboard = dashboard.refresh;
 
   function handleFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -167,7 +120,7 @@ export default function Home() {
   }
 
   async function saveMatch() {
-    if (!analysis || !selectedOpponent) {
+    if (!analysis || !selectedOpponent || !isConcreteEdition(importEdition)) {
       setErrorMessage("Sélectionne un adversaire avant d'enregistrer le match.");
       return;
     }
@@ -180,6 +133,7 @@ export default function Home() {
         ...analysis,
         friendName: selectedOpponent,
         edition: importEdition,
+        entryMode: "upload",
       }),
     });
     const data = await response.json();
@@ -189,7 +143,7 @@ export default function Home() {
       return;
     }
 
-    await refreshDashboard(selectedEdition);
+    await refreshDashboard();
     setIsSaving(false);
     setIsImportOpen(false);
     setAnalysisState("idle");
@@ -215,12 +169,11 @@ export default function Home() {
       setIsCreatingFriend(false);
       return;
     }
-    setFriends((current) => (current.includes(data.name) ? current : [...current, data.name]));
     setSelectedOpponent(data.name);
     setFriendName("");
     setIsCreatingFriend(false);
     setIsFriendOpen(false);
-    await refreshDashboard(selectedEdition);
+    await refreshDashboard();
   }
 
   function openEditMatch(match: Match) {
@@ -233,7 +186,7 @@ export default function Home() {
       opponentScore: match.opponentScore,
       possession: match.possession === "-" ? "" : match.possession.replace("%", ""),
       shots: match.shots === "-" ? "" : match.shots,
-      edition: match.edition || "FIFA_22",
+      edition: match.edition,
     });
   }
 
@@ -244,11 +197,11 @@ export default function Home() {
       setErrorMessage("Impossible de supprimer le match.");
       return;
     }
-    await refreshDashboard(selectedEdition);
+    await refreshDashboard();
   }
 
   async function deleteFriend(id: string) {
-    if (!window.confirm("Supprimer cet ami et ses matchs associés ?")) return;
+    if (!window.confirm("Delete this shared friend and all their matches across every edition? This cannot be undone.")) return;
     const response = await fetch(`/api/friends/${id}`, { method: "DELETE" });
     if (!response.ok) {
       setErrorMessage("Impossible de supprimer cet ami.");
@@ -257,7 +210,7 @@ export default function Home() {
     if (selectedFriend === stats.friendStats.find((friend) => friend.id === id)?.name) {
       setSelectedFriend("Tous les amis");
     }
-    await refreshDashboard(selectedEdition);
+    await refreshDashboard();
   }
 
   async function updateMatch(event: FormEvent<HTMLFormElement>) {
@@ -268,7 +221,11 @@ export default function Home() {
     const response = await fetch(`/api/matches/${editingMatch.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(editMatchForm),
+      body: JSON.stringify({
+        ...editMatchForm,
+        possession: editMatchForm.possession === "" ? null : Number(editMatchForm.possession),
+        shots: editMatchForm.shots === "" ? null : Number(editMatchForm.shots),
+      }),
     });
     const data = await response.json();
     if (!response.ok) {
@@ -278,7 +235,7 @@ export default function Home() {
     }
     setEditingMatch(null);
     setIsUpdating(false);
-    await refreshDashboard(selectedEdition);
+    await refreshDashboard();
   }
 
   async function updateFriend(event: FormEvent<HTMLFormElement>) {
@@ -295,7 +252,7 @@ export default function Home() {
       return;
     }
     setEditingFriend(null);
-    await refreshDashboard(selectedEdition);
+    await refreshDashboard();
   }
 
   return (
@@ -333,7 +290,7 @@ export default function Home() {
               selectedEdition={selectedEdition}
               onSelectEdition={(ed) => {
                 setSelectedEdition(ed);
-                if (ed !== "ALL") setImportEdition(ed);
+                if (analysisState === "idle") setImportEdition(ed);
               }}
               isOpen={isEditionOpen}
               onToggleOpen={() => setIsEditionOpen(!isEditionOpen)}
@@ -708,9 +665,9 @@ export default function Home() {
       <EaTraxPlayer edition={selectedEdition} />
 
       {/* ERROR BANNER */}
-      {errorMessage && (
+      {(errorMessage || dashboardState.error) && (
         <div className="fixed bottom-6 left-6 z-50 bg-red-950/90 border border-red-500 text-red-200 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 backdrop-blur-md">
-          <span className="text-xs font-mono font-bold">{errorMessage}</span>
+          <span className="text-xs font-mono font-bold">{errorMessage || dashboardState.error}</span>
           <button
             onClick={() => setErrorMessage("")}
             className="text-red-400 hover:text-white ml-2"
@@ -764,6 +721,7 @@ export default function Home() {
                 onChange={(e) => setImportEdition(e.target.value as FifaEdition)}
                 className="bg-black/60 border border-white/20 text-white rounded-lg px-2.5 py-1 text-xs font-bold outline-none cursor-pointer"
               >
+                {importEdition === "ALL" && <option value="ALL" disabled>Choose an edition</option>}
                 {VALID_RECORD_EDITIONS.map((ed) => (
                   <option key={ed} value={ed} className="bg-gray-900 text-white">
                     {FIFA_EDITIONS[ed].name}
@@ -867,7 +825,7 @@ export default function Home() {
               </button>
               <button
                 type="button"
-                disabled={analysisState !== "done" || isSaving || !selectedOpponent}
+                disabled={analysisState !== "done" || isSaving || !selectedOpponent || !isConcreteEdition(importEdition)}
                 onClick={saveMatch}
                 className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-black transition disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
                 style={{ background: currentTheme.heroColor }}
@@ -1160,7 +1118,6 @@ function StatCard({
 
 function MatchCardRow({
   match,
-  accentColor,
   onEdit,
   onDelete,
 }: {
@@ -1259,7 +1216,7 @@ function toMatch(match: {
   possession?: number | null;
   shots?: number | null;
   playedAt: string;
-  edition?: string;
+  edition: string;
 }): Match {
   return {
     id: match.id,
@@ -1285,6 +1242,6 @@ function toMatch(match: {
     friendId: match.friend.id,
     playerScore: match.playerScore,
     opponentScore: match.opponentScore,
-    edition: match.edition || "FIFA_22",
+    edition: match.edition,
   };
 }

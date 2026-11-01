@@ -1,11 +1,18 @@
-export type FifaEdition =
-  | "ALL"
-  | "FIFA_22"
-  | "FIFA_23"
-  | "FC_24"
-  | "FC_25"
-  | "FC_26"
-  | "FC_27";
+export const VALID_RECORD_EDITIONS = [
+  "FIFA_22", "FIFA_23", "FC_24", "FC_25", "FC_26", "FC_27",
+] as const;
+
+export type ConcreteEdition = (typeof VALID_RECORD_EDITIONS)[number];
+export type FifaEdition = ConcreteEdition | "ALL";
+export const LATEST_EDITION: ConcreteEdition = "FC_27";
+
+export function isConcreteEdition(value: unknown): value is ConcreteEdition {
+  return typeof value === "string" && VALID_RECORD_EDITIONS.some((edition) => edition === value);
+}
+
+export function isEditionScope(value: unknown): value is FifaEdition {
+  return value === "ALL" || isConcreteEdition(value);
+}
 
 export type Track = {
   title: string;
@@ -34,9 +41,9 @@ export type EditionConfig = {
 export const FIFA_EDITIONS: Record<FifaEdition, EditionConfig> = {
   ALL: {
     id: "ALL",
-    name: "Toutes les éditions",
+    name: "All editions",
     year: "2021-2027",
-    tagline: "Carrière globale et statistiques all-time",
+    tagline: "Career history and lifetime statistics",
     shortLabel: "ALL",
     badge: "GLOBAL",
     heroColor: "#6366f1",
@@ -176,15 +183,6 @@ export const FIFA_EDITIONS: Record<FifaEdition, EditionConfig> = {
 
 export const EDITION_LIST: FifaEdition[] = [
   "ALL",
-  "FIFA_22",
-  "FIFA_23",
-  "FC_24",
-  "FC_25",
-  "FC_26",
-  "FC_27",
-];
-
-export const VALID_RECORD_EDITIONS: FifaEdition[] = [
   "FIFA_22",
   "FIFA_23",
   "FC_24",

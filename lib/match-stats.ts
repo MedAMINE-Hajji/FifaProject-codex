@@ -21,9 +21,9 @@ const POSSESSION_LIMIT = 100;
 const SHOTS_LIMIT = 200;
 
 function requireScore(value: unknown, label: string): number | string {
-  if (typeof value !== "number" || !Number.isFinite(value)) return `${label} doit être un nombre`;
-  if (!Number.isInteger(value)) return `${label} doit être un entier`;
-  if (value < 0 || value > SCORE_LIMIT) return `${label} est hors limites FIFA`;
+  if (typeof value !== "number" || !Number.isFinite(value)) return `${label} must be a number`;
+  if (!Number.isInteger(value)) return `${label} must be an integer`;
+  if (value < 0 || value > SCORE_LIMIT) return `${label} must be between 0 and 200`;
   return value;
 }
 

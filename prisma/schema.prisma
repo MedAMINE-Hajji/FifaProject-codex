@@ -25,7 +25,7 @@ model Match {
   possession    Int?
   shots         Int?
   imageUrl      String?
-  edition       String   @default("FIFA_22")
+  edition       String
   playedAt      DateTime @default(now())
   createdAt     DateTime @default(now())
 
