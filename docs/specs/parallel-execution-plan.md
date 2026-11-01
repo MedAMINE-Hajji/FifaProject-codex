@@ -1,6 +1,6 @@
 # Parallel execution plan
 
-Status: proposed; awaiting user approval. This document authorizes no implementation on its own.
+Status: approved by the user on 2026-11-01. Implementation is underway under this plan; deployment and live-data changes require separate authorization.
 
 ## Source and current state
 
