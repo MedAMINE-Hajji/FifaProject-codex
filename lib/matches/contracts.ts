@@ -37,6 +37,17 @@ export type MatchDashboard = {
   matches: MatchRecord[];
   friends: FriendIdentity[];
   stats: DashboardStats;
+  comparisons?: EditionComparison[];
+};
+export type EditionComparison = {
+  edition: ConcreteEdition;
+  name: string;
+  matches: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  goals: number;
+  winRate: number;
 };
 
 // Serialized claims inside T2's authenticated, opaque uploadContext token.

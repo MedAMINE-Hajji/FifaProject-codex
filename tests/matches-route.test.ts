@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { testDb, requireT01Database } from "./helpers/t01-database";
+import { testDb, requireT01Database, testSchema } from "./helpers/t01-database";
 import { GET, POST } from "../app/api/matches/route";
 import { PATCH, DELETE } from "../app/api/matches/[id]/route";
 import { backfillLegacyMatches } from "../lib/matches/legacy-backfill";
@@ -35,8 +35,11 @@ async function create(body: object = {}) {
 describe.skipIf(!process.env.TEST_DATABASE_URL)("match HTTP API and confirmed-ID backfill (isolated PostgreSQL)", () => {
   beforeAll(async () => {
     requireT01Database();
-    await testDb.$executeRawUnsafe(`ALTER TABLE t01."Match" ALTER COLUMN "edition" SET DEFAULT 'FIFA_22'`);
     const require = createRequire(import.meta.url);
+    execFileSync(process.execPath, [require.resolve("prisma/build/index.js"), "db", "push", "--skip-generate"], {
+      stdio: "pipe", env: { ...process.env, DATABASE_URL: process.env.TEST_DATABASE_URL! },
+    });
+    await testDb.$executeRawUnsafe(`ALTER TABLE ${testSchema}."Match" ALTER COLUMN "edition" SET DEFAULT 'FIFA_22'`);
     const migration = fileURLToPath(new URL("../prisma/migrations/20261101000000_concrete_editions/migration.sql", import.meta.url));
     // Exercise the real SQL twice, only inside the guarded disposable schema.
     for (let run = 0; run < 2; run++) {
@@ -184,22 +187,22 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("match HTTP API and confirmed-ID
   });
 
   it("atomically rolls back a new friend if match persistence fails", async () => {
-    await testDb.$executeRawUnsafe(`CREATE FUNCTION t01.fail_match_insert() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'fixture failure'; END; $$ LANGUAGE plpgsql`);
-    await testDb.$executeRawUnsafe(`CREATE TRIGGER fail_match_insert BEFORE INSERT ON t01."Match" FOR EACH ROW EXECUTE FUNCTION t01.fail_match_insert()`);
+    await testDb.$executeRawUnsafe(`CREATE FUNCTION ${testSchema}.fail_match_insert() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'fixture failure'; END; $$ LANGUAGE plpgsql`);
+    await testDb.$executeRawUnsafe(`CREATE TRIGGER fail_match_insert BEFORE INSERT ON ${testSchema}."Match" FOR EACH ROW EXECUTE FUNCTION ${testSchema}.fail_match_insert()`);
     try {
       await expect(POST(req(valid))).rejects.toThrow();
       expect(await testDb.friend.count()).toBe(0);
       expect(await testDb.match.count()).toBe(0);
     } finally {
-      await testDb.$executeRawUnsafe(`DROP TRIGGER fail_match_insert ON t01."Match"`);
-      await testDb.$executeRawUnsafe(`DROP FUNCTION t01.fail_match_insert()`);
+      await testDb.$executeRawUnsafe(`DROP TRIGGER fail_match_insert ON ${testSchema}."Match"`);
+      await testDb.$executeRawUnsafe(`DROP FUNCTION ${testSchema}.fail_match_insert()`);
     }
   });
 
   it("SQL migration removes the old default and enforces concrete identities even outside HTTP", async () => {
     const columns = await testDb.$queryRaw<{ column_default: string | null }[]>`
       SELECT column_default FROM information_schema.columns
-      WHERE table_schema = 't01' AND table_name = 'Match' AND column_name = 'edition'
+      WHERE table_schema = ${testSchema} AND table_name = 'Match' AND column_name = 'edition'
     `;
     expect(columns).toEqual([{ column_default: null }]);
     const friend = await testDb.friend.create({ data: { name: "Sam" } });

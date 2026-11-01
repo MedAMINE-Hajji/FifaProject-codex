@@ -13,7 +13,8 @@ export const emptyDashboard = {
 export async function mockEmptyDashboard(page: Page) {
   await page.route(/\/api\/matches(?:\?.*)?$/, async route => {
     if (route.request().method() === 'GET') {
-      await route.fulfill({ json: emptyDashboard });
+      const edition = new URL(route.request().url()).searchParams.get('edition') ?? 'ALL';
+      await route.fulfill({ json: { ...emptyDashboard, edition } });
     } else {
       await route.continue();
     }
