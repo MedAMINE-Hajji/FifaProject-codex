@@ -1,249 +1,217 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Music, Play, Pause, SkipForward, Volume2, VolumeX, Disc3, AlertCircle } from "lucide-react";
-import { FIFA_EDITIONS, FifaEdition } from "@/lib/fifa-editions";
+import { Music, Pause, Play } from "lucide-react";
+import { isConcreteEdition, LATEST_EDITION, type ConcreteEdition, type FifaEdition } from "@/lib/fifa-editions";
+import { AUDIO_CATALOG, AUDIO_EDITION_KEY, AUDIO_PREFERENCES_KEY, DEFAULT_AUDIO_VOLUME, mediaDuration, parseAudioPreferences } from "@/lib/audio-catalog";
+import styles from "./EaTraxPlayer.module.css";
 
-type Props = {
-  edition: FifaEdition;
-};
+type Status = "paused" | "playing" | "loading" | "blocked" | "unavailable" | "background";
+type Player = { select: (edition: FifaEdition) => void; toggle: () => void; volume: (value: number) => void };
 
-export default function EaTraxPlayer({ edition }: Props) {
-  const currentConfig = FIFA_EDITIONS[edition] || FIFA_EDITIONS.ALL;
-  const playlist = currentConfig.playlist;
+export default function EaTraxPlayer({ edition }: { edition: FifaEdition }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const playerRef = useRef<Player | null>(null);
+  const [activeEdition, setActiveEdition] = useState<ConcreteEdition>(LATEST_EDITION);
+  const [volume, setVolume] = useState(DEFAULT_AUDIO_VOLUME);
+  const [status, setStatus] = useState<Status>("loading");
+  const [duration, setDuration] = useState<string | null>(null);
 
-  const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [showBanner, setShowBanner] = useState(false);
-  const [volume, setVolume] = useState(0.8);
-  const [audioError, setAudioError] = useState<string | null>(null);
-
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const hasInteractedRef = useRef(false);
-
-  const currentTrack = playlist[currentTrackIndex % playlist.length];
-
-  // AUTOMATIC TURN-ON (AUTOPLAY) LOGIC
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
+    let saved: string | null = null;
+    let lastEdition: ConcreteEdition = LATEST_EDITION;
+    try {
+      saved = localStorage.getItem(AUDIO_PREFERENCES_KEY);
+      const previous = localStorage.getItem(AUDIO_EDITION_KEY);
+      if (isConcreteEdition(previous)) lastEdition = previous;
+    } catch { /* Storage is optional. */ }
+    const preferences = parseAudioPreferences(saved);
+    let manualPause = preferences.paused;
+    let targetVolume = preferences.volume;
+    let failed = false;
+    let disposed = false;
+    let resumeOnVisible = false;
+    let pendingPlay = false;
+    let selected: ConcreteEdition | null = null;
+    let requested: ConcreteEdition | null = null;
+    let transition = new AbortController();
+    let cancelFade = () => {};
+    let selectionTimer: ReturnType<typeof setTimeout> | undefined;
+    audio.loop = true;
+    audio.volume = targetVolume;
 
-    // 1. Try immediate autoplay
-    const tryAutoplay = () => {
-      audio
-        .play()
-        .then(() => {
-          setIsPlaying(true);
-          setShowBanner(true);
-          hasInteractedRef.current = true;
-        })
-        .catch(() => {
-          // Browser prevented autoplay without prior interaction.
-          // Wait for first user click anywhere on document to immediately start music.
-          const handleFirstClick = () => {
-            if (hasInteractedRef.current) return;
-            hasInteractedRef.current = true;
-            audio
-              .play()
-              .then(() => {
-                setIsPlaying(true);
-                setShowBanner(true);
-              })
-              .catch(() => {});
-            window.removeEventListener("pointerdown", handleFirstClick);
-            window.removeEventListener("keydown", handleFirstClick);
-          };
-
-          window.addEventListener("pointerdown", handleFirstClick, { once: true });
-          window.addEventListener("keydown", handleFirstClick, { once: true });
-        });
+    const save = () => {
+      try { localStorage.setItem(AUDIO_PREFERENCES_KEY, JSON.stringify({ volume: targetVolume, paused: manualPause })); }
+      catch { /* Private browsing and quota failures are nonblocking. */ }
     };
+    const fade = (out: boolean, signal: AbortSignal) => new Promise<void>(resolve => {
+      cancelFade();
+      const start = performance.now();
+      const initial = audio.volume;
+      let frame = 0;
+      const finish = () => { cancelAnimationFrame(frame); signal.removeEventListener("abort", finish); resolve(); };
+      cancelFade = finish;
+      signal.addEventListener("abort", finish, { once: true });
+      const step = (now: number) => {
+        if (signal.aborted || disposed) { finish(); return; }
+        const progress = Math.min((now - start) / 220, 1);
+        audio.volume = out ? initial * (1 - progress) : targetVolume * progress;
+        if (progress < 1) frame = requestAnimationFrame(step);
+        else finish();
+      };
+      frame = requestAnimationFrame(step);
+    });
+    const play = async (signal: AbortSignal, fadeIn = true) => {
+      if (disposed || signal.aborted || failed || manualPause || document.hidden) return;
+      pendingPlay = true;
+      setStatus("loading");
+      try {
+        await audio.play();
+        if (signal.aborted || disposed) return;
+        if (manualPause || document.hidden) { audio.pause(); return; }
+        if (fadeIn) await fade(false, signal);
+      } catch (error: unknown) {
+        if (disposed || signal.aborted || manualPause || document.hidden) return;
+        if (error instanceof DOMException && error.name === "NotAllowedError") setStatus("blocked");
+        else if (error instanceof DOMException && error.name === "AbortError") setStatus("paused");
+        else { failed = true; setStatus("unavailable"); }
+      } finally {
+        if (!signal.aborted) pendingPlay = false;
+      }
+    };
+    const onPlaying = () => {
+      if (manualPause || document.hidden || failed) audio.pause();
+      else setStatus("playing");
+    };
+    const onPause = () => {
+      if (!disposed && !failed) setStatus(document.hidden && !manualPause ? "background" : "paused");
+    };
+    const onWaiting = () => { if (!manualPause && !failed && !document.hidden) setStatus("loading"); };
+    const onError = () => { failed = true; pendingPlay = false; cancelFade(); audio.pause(); setDuration(null); setStatus("unavailable"); };
+    const onMetadata = () => setDuration(mediaDuration(audio.duration));
+    const onVisibility = () => {
+      if (document.hidden) {
+        resumeOnVisible = !manualPause && !failed && (resumeOnVisible || !audio.paused || pendingPlay);
+        cancelFade();
+        pendingPlay = false;
+        audio.pause();
+        if (resumeOnVisible) setStatus("background");
+      } else if (resumeOnVisible && !manualPause && !failed) {
+        resumeOnVisible = false;
+        audio.volume = 0;
+        void play(transition.signal);
+      }
+    };
+    audio.addEventListener("playing", onPlaying);
+    audio.addEventListener("pause", onPause);
+    audio.addEventListener("waiting", onWaiting);
+    audio.addEventListener("error", onError);
+    audio.addEventListener("loadedmetadata", onMetadata);
+    audio.addEventListener("durationchange", onMetadata);
+    document.addEventListener("visibilitychange", onVisibility);
 
-    tryAutoplay();
+    playerRef.current = {
+      select(next) {
+        const concrete = isConcreteEdition(next) ? next : lastEdition;
+        if (concrete === requested) return;
+        requested = concrete;
+        lastEdition = concrete;
+        transition.abort();
+        transition = new AbortController();
+        const signal = transition.signal;
+        clearTimeout(selectionTimer);
+        // Defer source work so rapid edition changes collapse into one transition.
+        selectionTimer = setTimeout(async () => {
+          setVolume(targetVolume);
+          if (!audio.paused) await fade(true, signal);
+          if (signal.aborted || disposed) return;
+          audio.pause();
+          const initial = selected === null;
+          selected = concrete;
+          lastEdition = concrete;
+          try { localStorage.setItem(AUDIO_EDITION_KEY, concrete); } catch { /* Optional. */ }
+          failed = false;
+          pendingPlay = false;
+          setActiveEdition(concrete);
+          setDuration(null);
+          setStatus(manualPause ? "paused" : document.hidden ? "background" : "loading");
+          audio.src = AUDIO_CATALOG[concrete].src;
+          audio.volume = manualPause || initial ? targetVolume : 0;
+          audio.load();
+          if (document.hidden) resumeOnVisible = !manualPause;
+          else await play(signal, !initial);
+        }, 0);
+      },
+      toggle() {
+        if (failed || !selected) return;
+        cancelFade();
+        if (!audio.paused || pendingPlay) {
+          manualPause = true;
+          pendingPlay = false;
+          resumeOnVisible = false;
+          audio.pause();
+          setStatus("paused");
+        } else {
+          manualPause = false;
+          audio.volume = 0;
+          void play(transition.signal);
+        }
+        save();
+      },
+      volume(value) {
+        targetVolume = value;
+        audio.volume = value;
+        setVolume(value);
+        save();
+      },
+    };
+    return () => {
+      disposed = true;
+      transition.abort();
+      clearTimeout(selectionTimer);
+      playerRef.current = null;
+      document.removeEventListener("visibilitychange", onVisibility);
+      audio.removeEventListener("playing", onPlaying);
+      audio.removeEventListener("pause", onPause);
+      audio.removeEventListener("waiting", onWaiting);
+      audio.removeEventListener("error", onError);
+      audio.removeEventListener("loadedmetadata", onMetadata);
+      audio.removeEventListener("durationchange", onMetadata);
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+    };
   }, []);
 
-  // Whenever edition changes, show HUD banner
-  useEffect(() => {
-    setCurrentTrackIndex(0);
-    setShowBanner(true);
-    const timer = setTimeout(() => setShowBanner(false), 5000);
-    return () => clearTimeout(timer);
-  }, [edition]);
+  useEffect(() => { playerRef.current?.select(edition); }, [edition]);
 
-  // When track changes, animate the HUD banner
-  useEffect(() => {
-    setShowBanner(true);
-    const timer = setTimeout(() => setShowBanner(false), 4500);
-    return () => clearTimeout(timer);
-  }, [currentTrackIndex]);
-
-  useEffect(() => {
-    if (!audioRef.current) return;
-    audioRef.current.volume = volume;
-    audioRef.current.muted = isMuted;
-  }, [volume, isMuted]);
-
-  const togglePlay = async () => {
-    if (!audioRef.current) return;
-    setAudioError(null);
-    hasInteractedRef.current = true;
-
-    if (isPlaying) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    } else {
-      try {
-        await audioRef.current.play();
-        setIsPlaying(true);
-      } catch (err: any) {
-        console.error("Audio playback error:", err);
-        setAudioError("Cliquez à nouveau pour lancer.");
-        setIsPlaying(false);
-      }
-    }
+  const playing = status === "playing";
+  const canPause = playing || status === "loading";
+  const statusText: Record<Status, string> = {
+    playing: "Playing", paused: "Paused", loading: "Loading music…", blocked: "Select Play music to start",
+    unavailable: "Music unavailable", background: "Paused while in background",
   };
-
-  const nextTrack = () => {
-    hasInteractedRef.current = true;
-    setCurrentTrackIndex((prev) => (prev + 1) % playlist.length);
-    setTimeout(() => {
-      if (audioRef.current) {
-        audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
-      }
-    }, 150);
-  };
-
-  const toggleMute = () => {
-    setIsMuted((prev) => !prev);
-  };
-
   return (
-    <>
-      <audio
-        ref={audioRef}
-        src={currentTrack.audioUrl}
-        onEnded={nextTrack}
-        onError={() => {
-          setAudioError("Fichier audio introuvable ou illisible.");
-          setIsPlaying(false);
-        }}
-        preload="auto"
-      />
-
-      {/* EA TRAX HUD SLIDE-IN BANNER */}
-      <div
-        className={`fixed top-6 right-6 z-50 flex items-center gap-3.5 px-4 py-3 rounded-xl border backdrop-blur-md transition-all duration-500 shadow-2xl ${
-          showBanner
-            ? "translate-y-0 opacity-100"
-            : "-translate-y-12 opacity-0 pointer-events-none"
-        }`}
-        style={{
-          background: "rgba(10, 15, 20, 0.92)",
-          borderColor: currentConfig.heroColor,
-          boxShadow: `0 10px 30px -10px ${currentConfig.heroColor}40`,
-        }}
-      >
-        <div
-          className="w-10 h-10 rounded-lg flex items-center justify-center font-black text-xs uppercase"
-          style={{
-            background: currentConfig.heroColor,
-            color: "#0a0f14",
-          }}
-        >
-          <Disc3 className={`w-5 h-5 ${isPlaying ? "animate-spin" : ""}`} />
-        </div>
-        <div>
-          <div className="flex items-center gap-2">
-            <span
-              className="text-[9px] font-mono tracking-widest uppercase px-1.5 py-0.5 rounded"
-              style={{
-                background: `${currentConfig.heroColor}20`,
-                color: currentConfig.heroColor,
-              }}
-            >
-              EA SPORTS TRAX • {currentConfig.shortLabel}
-            </span>
-          </div>
-          <p className="text-sm font-black text-white leading-tight mt-0.5 truncate max-w-[240px]">
-            {currentTrack.title}
-          </p>
-          <p className="text-[11px] text-gray-400 truncate max-w-[240px]">
-            {currentTrack.artist}
-          </p>
-        </div>
+    <section className={styles.player} aria-label="Edition music">
+      <audio ref={audioRef} loop preload="metadata" />
+      <Music aria-hidden="true" size={20} className={styles.icon} />
+      <div className={styles.info}>
+        <span className={styles.brand}>EA TRAX</span>
+        <span className={styles.title}>{AUDIO_CATALOG[activeEdition].title}</span>
+        <span role="status" className={styles.status}>{statusText[status]}{duration ? ` · ${duration}` : ""}</span>
       </div>
-
-      {/* FLOATING CORNER CONTROLLER */}
-      <div
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 px-3.5 py-2.5 rounded-full border backdrop-blur-xl shadow-2xl transition-all"
-        style={{
-          background: "rgba(12, 18, 26, 0.94)",
-          borderColor: isPlaying ? currentConfig.heroColor : "rgba(255, 255, 255, 0.15)",
-        }}
-      >
-        <button
-          onClick={() => setShowBanner((prev) => !prev)}
-          className="flex items-center gap-2 group text-left cursor-pointer mr-1"
-          title="EA Trax info"
-        >
-          <span
-            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-transform group-hover:scale-105"
-            style={{
-              background: currentConfig.heroColor,
-              color: "#05090e",
-            }}
-          >
-            <Music className="w-4 h-4" />
-          </span>
-          <div className="hidden sm:block">
-            <span className="block text-[9px] font-mono uppercase text-gray-400 group-hover:text-white leading-none">
-              EA TRAX
-            </span>
-            <span className="block text-[11px] font-bold text-white max-w-[130px] truncate leading-tight mt-0.5">
-              {currentTrack.title}
-            </span>
-          </div>
-        </button>
-
-        <div className="h-4 w-px bg-white/10 mx-0.5" />
-
-        {/* PLAY / PAUSE BUTTON */}
-        <button
-          onClick={togglePlay}
-          className="w-9 h-9 rounded-full flex items-center justify-center text-white transition-all hover:scale-110 active:scale-95 shadow-md cursor-pointer"
-          style={{
-            background: currentConfig.heroColor,
-            color: "#05090e",
-          }}
-          title={isPlaying ? "Mettre en pause" : "Lancer la musique"}
-        >
-          {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
-        </button>
-
-        <button
-          onClick={nextTrack}
-          className="w-8 h-8 rounded-full flex items-center justify-center text-gray-300 hover:text-white hover:bg-white/10 transition active:scale-95 cursor-pointer"
-          title="Piste suivante"
-        >
-          <SkipForward className="w-4 h-4" />
-        </button>
-
-        <button
-          onClick={toggleMute}
-          className="w-8 h-8 rounded-full flex items-center justify-center text-gray-300 hover:text-white hover:bg-white/10 transition active:scale-95 cursor-pointer"
-          title={isMuted ? "Activer le son" : "Couper le son"}
-        >
-          {isMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4" />}
-        </button>
-      </div>
-
-      {audioError && (
-        <div className="fixed bottom-20 right-6 z-40 bg-red-950/90 border border-red-500/60 text-red-200 text-xs px-3 py-2 rounded-xl backdrop-blur-md flex items-center gap-2 shadow-xl">
-          <AlertCircle className="w-4 h-4 text-red-400" />
-          <span>{audioError}</span>
-        </div>
-      )}
-    </>
+      <button type="button" className={styles.play} onClick={() => playerRef.current?.toggle()}
+        disabled={status === "unavailable"} aria-label={canPause ? "Pause music" : "Play music"}>
+        {playing ? <Pause aria-hidden="true" size={18} /> : <Play aria-hidden="true" size={18} />}
+        <span>{canPause ? "Pause" : "Play music"}</span>
+      </button>
+      <label className={styles.volume}>
+        <span>Volume {Math.round(volume * 100)}%</span>
+        <input aria-label="Music volume" type="range" min="0" max="100" step="1" value={Math.round(volume * 100)}
+          onChange={event => playerRef.current?.volume(Number(event.target.value) / 100)} />
+      </label>
+    </section>
   );
 }
