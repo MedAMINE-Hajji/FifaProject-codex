@@ -56,7 +56,7 @@ export default function EaTraxPlayer({ edition }: { edition: FifaEdition }) {
       signal.addEventListener("abort", finish, { once: true });
       const step = (now: number) => {
         if (signal.aborted || disposed) { finish(); return; }
-        const progress = Math.min((now - start) / 220, 1);
+        const progress = Math.max(0, Math.min((now - start) / 220, 1));
         audio.volume = out ? initial * (1 - progress) : targetVolume * progress;
         if (progress < 1) frame = requestAnimationFrame(step);
         else finish();
@@ -127,7 +127,19 @@ export default function EaTraxPlayer({ edition }: { edition: FifaEdition }) {
           setVolume(targetVolume);
           if (!audio.paused) await fade(true, signal);
           if (signal.aborted || disposed) return;
-          audio.pause();
+          if (!audio.paused) {
+            await new Promise<void>(resolve => {
+              const finish = () => {
+                audio.removeEventListener('pause', finish);
+                signal.removeEventListener('abort', finish);
+                resolve();
+              };
+              audio.addEventListener('pause', finish, { once: true });
+              signal.addEventListener('abort', finish, { once: true });
+              audio.pause();
+            });
+          }
+          if (signal.aborted || disposed) return;
           const initial = selected === null;
           selected = concrete;
           lastEdition = concrete;

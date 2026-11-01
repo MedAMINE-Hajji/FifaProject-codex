@@ -6,6 +6,7 @@ import type { MatchEntryDialogProps, MatchEntryInput, MatchRecord } from "@/lib/
 import { resolveManualDate } from "@/lib/matches/manual-date";
 import { validateStats } from "@/lib/match-stats";
 import styles from "./ManualMatchDialog.module.css";
+import { trapDialogFocus } from '@/lib/dialog-focus';
 
 export default function ManualMatchDialog(props: MatchEntryDialogProps) {
   // A fresh session per opening; subsequent dashboard changes cannot move this entry.
@@ -28,9 +29,13 @@ function ManualEntrySession({ edition, friends, onClose, onSaved }: MatchEntryDi
 
   useEffect(() => {
     const element = dialog.current!;
+    const previous = document.activeElement;
     element.showModal();
     element.querySelector<HTMLElement>("select, input")?.focus();
-    return () => element.close();
+    return () => {
+      element.close();
+      if (previous instanceof HTMLElement) previous.focus();
+    };
   }, []);
 
   useEffect(() => {
@@ -108,7 +113,7 @@ function ManualEntrySession({ edition, friends, onClose, onSaved }: MatchEntryDi
   }
 
   return (
-    <dialog ref={dialog} className={styles.dialog} aria-labelledby={`${id}-title`} aria-describedby={`${id}-description`}
+    <dialog ref={dialog} className={styles.dialog} aria-labelledby={`${id}-title`} aria-describedby={`${id}-description`} onKeyDown={trapDialogFocus}
       onCancel={(event) => { event.preventDefault(); if (!submitting.current) onClose(); }}>
       <div className={styles.header}>
         <h2 id={`${id}-title`}>Add match manually</h2>
@@ -119,7 +124,7 @@ function ManualEntrySession({ edition, friends, onClose, onSaved }: MatchEntryDi
       </p>
       {!capturedEdition ? (
         <label className={styles.label}>Match edition
-          <select defaultValue="" onChange={(event) => { if (isConcreteEdition(event.target.value)) setCapturedEdition(event.target.value); }}>
+          <select aria-label="Match edition" defaultValue="" onChange={(event) => { if (isConcreteEdition(event.target.value)) setCapturedEdition(event.target.value); }}>
             <option value="" disabled>Choose an edition</option>
             {VALID_RECORD_EDITIONS.map((value) => <option key={value} value={value}>{FIFA_EDITIONS[value].name}</option>)}
           </select>
@@ -129,7 +134,7 @@ function ManualEntrySession({ edition, friends, onClose, onSaved }: MatchEntryDi
           <fieldset disabled={busy || !!savedMatch} className={styles.fields}>
             <legend className={styles.srOnly}>Match details</legend>
             <label className={styles.label}>Existing friend
-              <select defaultValue="" onChange={(event) => {
+              <select aria-label="Existing friend" defaultValue="" onChange={(event) => {
                 const input = event.currentTarget.form?.elements.namedItem("friendName") as HTMLInputElement | null;
                 if (input) input.value = event.target.value;
               }}>

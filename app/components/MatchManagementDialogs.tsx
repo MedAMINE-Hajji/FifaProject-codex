@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { FIFA_EDITIONS, VALID_RECORD_EDITIONS } from '@/lib/fifa-editions';
 import type { FriendIdentity, MatchRecord } from '@/lib/matches/contracts';
 import styles from './MatchManagementDialogs.module.css';
+import { trapDialogFocus } from '@/lib/dialog-focus';
 
 export type ManagementState =
   | { kind: 'friend-add' }
@@ -24,7 +25,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
     dialog?.showModal();
     return () => dialog?.close();
   }, []);
-  return <dialog ref={ref} className={styles.modal} aria-labelledby="management-title" onCancel={onClose}>
+  return <dialog ref={ref} className={styles.modal} aria-labelledby="management-title" onCancel={onClose} onKeyDown={trapDialogFocus}>
     <header><h2 id="management-title">{title}</h2><button type="button" onClick={onClose} aria-label="Close dialog">×</button></header>
     {children}
   </dialog>;

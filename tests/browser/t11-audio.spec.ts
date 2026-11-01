@@ -44,7 +44,11 @@ async function visibility(page: Page, hidden: boolean) {
   }, hidden);
 }
 
+let runtimeErrors: string[] = [];
+test.afterEach(() => { expect(runtimeErrors).toEqual([]); });
 test.beforeEach(async ({ page }) => {
+  runtimeErrors = [];
+  page.on('pageerror', error => runtimeErrors.push(error.message));
   await mockEmptyDashboard(page);
   await page.route(/\/audio\/fifa2[2-7]\.mp3(?:\?.*)?$/, route => route.fulfill({ contentType: "audio/wav", body: tone() }));
 });

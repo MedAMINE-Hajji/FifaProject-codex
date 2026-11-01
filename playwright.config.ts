@@ -18,7 +18,7 @@ export default defineConfig({
   }, {
     command: `npm run dev -- --hostname 127.0.0.1 --port ${port}`,
     url: `http://127.0.0.1:${port}`,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120000,
     env: {
       AI_API_KEY: 'matchday-browser-fixture-key',

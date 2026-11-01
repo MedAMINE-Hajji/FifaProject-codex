@@ -36,6 +36,9 @@ test("review remains editable, saves once with upload context, and refreshes the
   const dialog = page.getByRole("dialog", { name: "Import match" });
   await dialog.getByLabel("Photo library or file").setInputFiles(image);
   await expect(dialog.getByText("Saving to EA SPORTS FC 27")).toBeVisible();
+  // Simulate a workspace change outside the modal while preserving its session.
+  await page.getByLabel("Current edition", { exact: true }).selectOption("FIFA_22", { force: true });
+  await expect(dialog.getByText("Saving to EA SPORTS FC 27")).toBeVisible();
   await dialog.getByLabel("Your score", { exact: true }).fill("4");
   await dialog.getByLabel("Opponent club", { exact: true }).fill("Barcelona");
   const before = reads;

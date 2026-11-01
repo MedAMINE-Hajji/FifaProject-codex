@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { FIFA_EDITIONS, VALID_RECORD_EDITIONS, isConcreteEdition, type ConcreteEdition } from "@/lib/fifa-editions";
 import type { MatchEntryDialogProps, MatchRecord } from "@/lib/matches/contracts";
 import styles from "./ImportMatchDialog.module.css";
+import { trapDialogFocus } from '@/lib/dialog-focus';
 
 type Review = {
   friendName: string; playerClub: string; opponentClub: string;
@@ -30,9 +31,11 @@ function ImportSession({ edition, friends, onClose, onSaved }: MatchEntryDialogP
 
   useEffect(() => {
     const previous = document.activeElement;
-    dialog.current?.showModal();
+    const element = dialog.current;
+    element?.showModal();
     return () => {
       request.current?.abort();
+      element?.close();
       if (previous instanceof HTMLElement) previous.focus();
     };
   }, []);
@@ -97,7 +100,7 @@ function ImportSession({ edition, friends, onClose, onSaved }: MatchEntryDialogP
       value={review?.[key] ?? ""} onChange={event => setReview(current => current ? { ...current, [key]: event.target.value } : current)} /></label>;
   }
 
-  return <dialog ref={dialog} className={styles.dialog} aria-labelledby={`${id}-title`} aria-describedby={`${id}-help`}
+  return <dialog ref={dialog} className={styles.dialog} aria-labelledby={`${id}-title`} aria-describedby={`${id}-help`} onKeyDown={trapDialogFocus}
     onCancel={event => { event.preventDefault(); if (phase !== "saving") onClose(); }}>
     <div className={styles.heading}><h2 id={`${id}-title`}>Import match</h2><button type="button" onClick={onClose} disabled={phase === "saving"} aria-label="Close import dialog">Close</button></div>
     <p id={`${id}-help`}>Upload a result, then review every detail before saving. The upload date is recorded automatically.</p>
@@ -112,7 +115,7 @@ function ImportSession({ edition, friends, onClose, onSaved }: MatchEntryDialogP
       <label>Take a photo<input type="file" accept="image/*" capture="environment" onChange={event => { void upload(event.target.files?.[0]); event.target.value = ""; }} /></label>
     </fieldset>}
     {review && <form onSubmit={save}><fieldset disabled={phase === "saving" || phase === "saved"} className={styles.review}><legend>Review match details</legend>
-      {field("friendName", "Friend")}{field("playerClub", "Your club")}{field("opponentClub", "Opponent club")}
+      {field("friendName", "Friend name")}{field("playerClub", "Your club")}{field("opponentClub", "Opponent club")}
       {field("playerScore", "Your score", true)}{field("opponentScore", "Opponent score", true)}
       {field("possession", "Possession % (optional)", true, true, 100)}{field("shots", "Shots (optional)", true, true)}
       <datalist id={`${id}-friends`}>{friends.map(friend => <option key={friend.id} value={friend.name} />)}</datalist>
