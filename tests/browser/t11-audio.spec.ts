@@ -29,8 +29,11 @@ async function start(page: Page) {
   await expect(panel.getByRole("status")).toContainText("Playing");
 }
 async function choose(page: Page, current: string, next: string) {
-  await page.getByRole("button", { name: new RegExp(current) }).first().click();
-  await page.getByRole("button", { name: new RegExp(next) }).last().click();
+  const select = page.getByLabel("Current edition", { exact: true });
+  await expect(select.locator('option:checked')).toContainText(current);
+  const value = await select.locator('option').filter({ hasText: next }).first().getAttribute('value');
+  expect(value).not.toBeNull();
+  await select.selectOption(value!);
 }
 async function visibility(page: Page, hidden: boolean) {
   // Deterministic visibility event: media itself stays native. Real tab-switch

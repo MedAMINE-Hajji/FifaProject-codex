@@ -111,8 +111,7 @@ test("requires valid fields, keeps values on save failure and prevents duplicate
 
 test("All editions requires a concrete choice before entry; keyboard focus stays in responsive dialog", async ({ page }) => {
   const { posts } = await fixture(page);
-  await page.getByRole("button", { name: /EA SPORTS FC 27/i }).first().click();
-  await page.getByRole("button", { name: /All editions/i }).click();
+  await page.getByLabel("Current edition", { exact: true }).selectOption("ALL");
   const dialog = await openManual(page);
   const edition = dialog.getByLabel("Match edition", { exact: true });
   await expect(edition).toBeFocused();

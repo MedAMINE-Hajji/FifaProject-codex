@@ -32,7 +32,7 @@ test("review remains editable, saves once with upload context, and refreshes the
       playedAt: "2026-10-31T23:59:59.000Z", createdAt: "2026-11-01T00:01:00.000Z", imageUrl: null } });
   });
   await page.goto("/");
-  await page.getByRole("button", { name: "Import match", exact: true }).click();
+  await page.getByRole("button", { name: /Import match|Upload screenshot/ }).click();
   const dialog = page.getByRole("dialog", { name: "Import match" });
   await dialog.getByLabel("Photo library or file").setInputFiles(image);
   await expect(dialog.getByText("Saving to EA SPORTS FC 27")).toBeVisible();
@@ -57,7 +57,7 @@ test("analysis and save failures preserve records and allow correction/retry", a
     await route.fulfill({ status: 400, json: { error: "private details" } });
   });
   await page.goto("/");
-  const trigger = page.getByRole("button", { name: "Import match", exact: true });
+  const trigger = page.getByRole("button", { name: /Import match|Upload screenshot/ });
   await trigger.click();
   const dialog = page.getByRole("dialog", { name: "Import match" });
   await dialog.getByLabel("Take a photo").setInputFiles(image);
@@ -79,8 +79,7 @@ test("career imports require an explicit concrete edition", async ({ page }) => 
     await route.fulfill({ json: extraction });
   });
   await page.goto("/");
-  await page.getByRole("button", { name: /EA SPORTS FC 27/ }).first().click();
-  await page.getByRole("button", { name: /All editions/ }).click();
+  await page.getByLabel("Current edition", { exact: true }).selectOption("ALL");
   await page.getByRole("button", { name: "Import match", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Import match" });
   await expect(dialog.getByLabel("Photo library or file")).toBeDisabled();

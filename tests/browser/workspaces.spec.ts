@@ -11,8 +11,7 @@ test('fresh visits open FC 27 and selecting FIFA 22 requests its own scope', asy
   });
   await page.goto('/');
   await expect.poll(() => scopes.at(-1)).toBe('FC_27');
-  await page.getByRole('button', { name: /EA SPORTS FC 27/ }).first().click();
-  await page.getByRole('button', { name: /FIFA 22/ }).click();
+  await page.getByLabel('Current edition', { exact: true }).selectOption('FIFA_22');
   await expect.poll(() => scopes.at(-1)).toBe('FIFA_22');
   await page.reload();
   await expect.poll(() => scopes.at(-1)).toBe('FC_27');

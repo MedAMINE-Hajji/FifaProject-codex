@@ -20,7 +20,7 @@ test('English history supports keyboard filters and cannot leak records across e
   await expect(page.getByText('17 Mar 2022')).toBeVisible();
   const search = page.getByRole('searchbox', { name: 'Search matches by friend or club' });
   await search.fill('no matching club');
-  await expect(page.getByRole('status')).toContainText('No matches match these filters');
+  await expect(page.locator('#match-history').getByRole('status')).toContainText('No matches match these filters');
   await search.fill('Arsenal');
   await page.getByLabel('Filter by result', { exact: true }).selectOption('Loss');
   await expect(page.getByLabel('Arsenal 3, Inter 1')).toHaveCount(0);

@@ -15,8 +15,7 @@ test("career totals, keyboard edition navigation and responsive comparisons", as
     } });
   });
   await page.goto("/");
-  await page.getByRole("button", { name: /EA SPORTS FC 27/ }).first().click();
-  await page.getByRole("button", { name: /All editions/ }).click();
+  await page.getByLabel("Current edition", { exact: true }).selectOption("ALL");
   const panel = page.getByRole("region", { name: "Career overview" });
   await expect(panel).toBeVisible();
   await expect(panel.getByText("No matches recorded yet.", { exact: false })).toBeVisible();
